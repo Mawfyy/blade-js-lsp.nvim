@@ -156,4 +156,32 @@ function M.forget(bufnr)
   clean(bufnr)
 end
 
+--- Refresh shadow files/content without recreating buffers when only the
+--- content changed (region line positions unchanged). Falls back to `sync`
+--- (full recreate) on first call or when the region structure changed.
+--- Called on text changes so diagnostics track the latest content.
+--- @param bufnr number
+function M.refresh(bufnr)
+  local entry = state[bufnr]
+  if not entry then
+    return M.sync(bufnr)
+  end
+  local rs = regions.parse(bufnr)
+  if regions.signature(rs) ~= entry.set_sig then
+    return M.sync(bufnr)
+  end
+  for i, r in ipairs(entry.regions) do
+    local cur = regions.content(bufnr, r)
+    if entry.contents[i] ~= cur then
+      entry.contents[i] = cur
+      write_file(entry.paths[i], cur)
+      local vbuf = entry.vbufs[i]
+      if vbuf and vim.api.nvim_buf_is_valid(vbuf) then
+        vim.api.nvim_buf_set_lines(vbuf, 0, -1, false, vim.split(cur, "\n", { plain = true }))
+      end
+    end
+  end
+  return entry
+end
+
 return M

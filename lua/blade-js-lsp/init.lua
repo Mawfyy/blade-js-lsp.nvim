@@ -14,14 +14,44 @@ function M.setup(opts)
 
   local group = vim.api.nvim_create_augroup("BladeJsLsp", { clear = true })
 
-  -- Eagerly bridge script regions so vtsls/tsserver can warm up.
+  -- Bridge script regions so vtsls/tsserver can warm up, and keep shadow files
+  -- in sync as the user types (so diagnostics stay fresh).
   vim.api.nvim_create_autocmd({ "BufEnter", "BufWritePost" }, {
     group = group,
     callback = function(args)
       local name = vim.api.nvim_buf_get_name(args.buf)
       if vim.endswith(name, ".blade.php") then
-        bridge.sync(args.buf)
+        bridge.refresh(args.buf)
       end
+    end,
+  })
+
+  local pending = {}
+  vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
+    group = group,
+    callback = function(args)
+      local name = vim.api.nvim_buf_get_name(args.buf)
+      if not vim.endswith(name, ".blade.php") then
+        return
+      end
+      local timer = pending[args.buf]
+      if timer then
+        timer:stop()
+        timer:close()
+        pending[args.buf] = nil
+      end
+      timer = vim.uv.new_timer()
+      timer:start(300, 0, function()
+        timer:stop()
+        timer:close()
+        pending[args.buf] = nil
+        vim.schedule(function()
+          if vim.api.nvim_buf_is_valid(args.buf) then
+            bridge.refresh(args.buf)
+          end
+        end)
+      end)
+      pending[args.buf] = timer
     end,
   })
 
@@ -30,6 +60,12 @@ function M.setup(opts)
     group = group,
     callback = function(args)
       bridge.forget(args.buf)
+      local timer = pending[args.buf]
+      if timer then
+        timer:stop()
+        timer:close()
+        pending[args.buf] = nil
+      end
     end,
   })
 
