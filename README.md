@@ -23,7 +23,7 @@ compile.
 ```lua
 return {
   {
-    dir = "~/Projects/blade-js-lsp.nvim",
+    "Mawfyy/blade-js-lsp.nvim",
     event = "VeryLazy",
     config = function()
       require("blade-js-lsp").setup()
@@ -39,6 +39,12 @@ return {
 }
 ```
 
+For a local checkout while developing:
+
+```lua
+{ dir = "~/Projects/blade-js-lsp.nvim", dev = true, event = "VeryLazy" }
+```
+
 ## How it works
 
 1. `regions.lua` scans the buffer for `<script ...>...</script>` blocks (skips
@@ -52,6 +58,18 @@ return {
    `textDocument/completion`, and remaps every `textEdit` range back to blade
    coordinates.
 
+## Why not just `vim.lsp.enable`?
+
+`vim.lsp.enable` auto-start skips hidden/`nofile` buffers, so vtsls never attaches
+to the mirrored JS buffers on its own — the plugin starts it explicitly with
+`vim.lsp.start` (`client.lua`).
+
+`vtsls` also returns **zero-width** `textEdit` ranges (start == end == cursor) for
+its server-side fuzzy completions, expecting the client to compute the word to
+replace. The blink source rebuilds those edits to cover the typed identifier, so
+accepting `forEach` on `items.forE` yields `items.forEach` instead of
+`items.forEforEach`.
+
 ## Tests
 
 ```sh
@@ -60,7 +78,8 @@ nvim --headless -u NONE -c "lua dofile('tests/e2e.lua')"
 
 Requires `vtsls` on `PATH` and a git root above `tests/` (run from a repo). The
 test creates a blade buffer, attaches vtsls, and asserts `forEach` is offered in
-a `<script>` block, with `textEdit` ranges remapped into blade coordinates.
+a `<script>` block with its `textEdit` range remapped to the correct blade span
+(non-zero-width, replacing the typed prefix).
 
 ## Roadmap
 
