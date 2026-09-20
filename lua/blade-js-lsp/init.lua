@@ -73,6 +73,12 @@ function M.setup(opts)
 
   if opts.forward then
     request.hook()
+    -- Plugins like Noice.nvim replace `vim.lsp.buf.hover` on a deferred
+    -- schedule after startup, clobbering our override. Re-assert ours after
+    -- those deferred callbacks have run (double schedule runs last).
+    vim.schedule(function()
+      vim.schedule(request.hook)
+    end)
   end
 end
 

@@ -11,6 +11,11 @@ function M.new(opts, _config)
   return setmetatable({ opts = opts or {} }, { __index = M })
 end
 
+--- Trigger characters that open the completion menu (matches tsserver/vtsls).
+function M.get_trigger_characters()
+  return { ".", '"', "'", "`", "/", "@", "<", "#" }
+end
+
 --- Scan backward from `character` (0-based) over JS identifier chars
 --- ([%w_$]) to find the start of the word being completed.
 --- @param line_text string
@@ -118,11 +123,21 @@ function M:get_completions(context, callback)
     return empty()
   end
 
+  local trigger_kind = vim.lsp.protocol.CompletionTriggerKind.Invoked
+  local trigger_char = nil
+  if context.trigger and context.trigger.kind == "trigger_character" and context.trigger.character then
+    trigger_kind = vim.lsp.protocol.CompletionTriggerKind.TriggerCharacter
+    trigger_char = context.trigger.character
+  end
+
   local params = {
     textDocument = { uri = vim.uri_from_bufnr(vbuf) },
     position = vpos,
-    context = { triggerKind = 1 },
+    context = { triggerKind = trigger_kind },
   }
+  if trigger_char then
+    params.context.triggerCharacter = trigger_char
+  end
 
   vim.lsp.buf_request(vbuf, "textDocument/completion", params, function(err, result)
     if err or not result then

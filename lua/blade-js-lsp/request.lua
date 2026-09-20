@@ -171,36 +171,35 @@ function M.signature_help()
   return true
 end
 
+M._wrapped = {}
+
+--- Wrap `vim.lsp.buf[name]` so it tries `forward` first and falls back to the
+--- previous implementation. Idempotent: re-running re-wraps whatever is
+--- currently installed (e.g. Noice.nvim replaces `vim.lsp.buf.hover` after
+--- this plugin loads, so we re-assert on top of it).
+--- @param name string
+--- @param forward fun(): boolean|nil
+local function wrap(name, forward)
+  if vim.lsp.buf[name] == M._wrapped[name] then
+    return
+  end
+  local orig = vim.lsp.buf[name]
+  M._wrapped[name] = function(...)
+    if forward() then
+      return
+    end
+    return orig(...)
+  end
+  vim.lsp.buf[name] = M._wrapped[name]
+end
+
 --- Override `vim.lsp.buf.*` entry points so hover/definition/signature-help
 --- forward to vtsls when the cursor is inside a blade script region.
 function M.hook()
-  if M.hooked then
-    return
-  end
   M.hooked = true
-
-  local orig_hover = vim.lsp.buf.hover
-  local orig_definition = vim.lsp.buf.definition
-  local orig_signature = vim.lsp.buf.signature_help
-
-  vim.lsp.buf.hover = function(...)
-    if M.hover() then
-      return
-    end
-    return orig_hover(...)
-  end
-  vim.lsp.buf.definition = function(...)
-    if M.definition() then
-      return
-    end
-    return orig_definition(...)
-  end
-  vim.lsp.buf.signature_help = function(...)
-    if M.signature_help() then
-      return
-    end
-    return orig_signature(...)
-  end
+  wrap("hover", M.hover)
+  wrap("definition", M.definition)
+  wrap("signature_help", M.signature_help)
 end
 
 return M
