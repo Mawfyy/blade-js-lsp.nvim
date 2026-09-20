@@ -57,7 +57,9 @@ function M.hover()
   end
   vim.lsp.buf_request(ctx.vbuf, "textDocument/hover", params(ctx), function(err, result)
     if err or not result or not result.contents then
-      return vim.notify("No information available", vim.log.levels.INFO)
+      local why = err and ("vtsls error: " .. tostring(err.message or err))
+        or "vtsls returned no hover contents"
+      return vim.notify("[blade-js-lsp] " .. why, vim.log.levels.INFO)
     end
 
     local format = "markdown"
@@ -69,7 +71,7 @@ function M.hover()
       contents = vim.lsp.util.convert_input_to_markdown_lines(result.contents)
     end
     if vim.tbl_isempty(contents) then
-      return vim.notify("No information available", vim.log.levels.INFO)
+      return vim.notify("[blade-js-lsp] vtsls returned empty hover", vim.log.levels.INFO)
     end
 
     -- Highlight the hovered range in the blade buffer (like vim.lsp.buf.hover).
