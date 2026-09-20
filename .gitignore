@@ -1,2 +1,5 @@
 .luacheckrc
 *.luac
+
+# shadow files written during tests
+/storage/

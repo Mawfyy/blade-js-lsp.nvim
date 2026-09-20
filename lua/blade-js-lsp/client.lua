@@ -1,3 +1,5 @@
+local diagnostics = require("blade-js-lsp.diagnostics")
+
 local M = {}
 
 local root_markers = { ".git", "tsconfig.json", "package.json", "jsconfig.json" }
@@ -35,6 +37,9 @@ function M.ensure(bufnr, timeout_ms)
     name = "vtsls",
     cmd = { "vtsls", "--stdio" },
     root_dir = root,
+    handlers = {
+      ["textDocument/publishDiagnostics"] = diagnostics.handler,
+    },
   }, { bufnr = bufnr })
 
   local deadline = vim.uv.hrtime() + timeout_ms * 1e6

@@ -51,7 +51,7 @@ local vbuf
 while vim.uv.hrtime() < deadline do
   vim.wait(200)
   for _, b in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.api.nvim_buf_get_name(b):match("^bladejs://") then
+    if vim.api.nvim_buf_get_name(b):match("blade%-%d+%-%d+%.[jt]sx?$") then
       vbuf = b
       break
     end

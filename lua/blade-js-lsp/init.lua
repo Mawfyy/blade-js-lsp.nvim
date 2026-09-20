@@ -1,9 +1,11 @@
 local bridge = require("blade-js-lsp.bridge")
+local request = require("blade-js-lsp.request")
 
 local M = {}
 
 local defaults = {
-  -- Reserved for future options (e.g. hover/definition forwarding, debounce).
+  -- Forward LSP hover / go-to-definition / signature-help inside <script> regions.
+  forward = true,
 }
 
 ---@param opts? table
@@ -32,6 +34,10 @@ function M.setup(opts)
   })
 
   require("blade-js-lsp.blink").register()
+
+  if opts.forward then
+    request.hook()
+  end
 end
 
 return M
