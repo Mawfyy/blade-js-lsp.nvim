@@ -49,7 +49,7 @@ local function params(ctx)
   }
 end
 
---- Hover. Returns true if handled (forwarded to vtsls), nil otherwise.
+-- Hover. Returns true if handled (forwarded to vtsls), nil otherwise.
 function M.hover()
   local ctx = M.context()
   if not ctx then
@@ -59,15 +59,37 @@ function M.hover()
     if err or not result or not result.contents then
       return vim.notify("No information available", vim.log.levels.INFO)
     end
-    local remapped = vim.deepcopy(result)
-    if remapped.range then
-      remapped.range.start = regions.to_blade(ctx.region, remapped.range.start)
-      remapped.range["end"] = regions.to_blade(ctx.region, remapped.range["end"])
+
+    local format = "markdown"
+    local contents
+    if type(result.contents) == "table" and result.contents.kind == "plaintext" then
+      format = "plaintext"
+      contents = vim.split(result.contents.value or "", "\n", { trimempty = true })
+    else
+      contents = vim.lsp.util.convert_input_to_markdown_lines(result.contents)
     end
-    vim.lsp.handlers.hover(err, remapped, {
-      bufnr = ctx.bufnr,
-      method = "textDocument/hover",
-    }, nil)
+    if vim.tbl_isempty(contents) then
+      return vim.notify("No information available", vim.log.levels.INFO)
+    end
+
+    -- Highlight the hovered range in the blade buffer (like vim.lsp.buf.hover).
+    pcall(function()
+      if not result.range or not ctx.client then
+        return
+      end
+      local s = regions.to_blade(ctx.region, result.range.start)
+      local e = regions.to_blade(ctx.region, result.range["end"])
+      local ns = vim.api.nvim_create_namespace("blade-js-lsp-hover")
+      vim.api.nvim_buf_clear_namespace(ctx.bufnr, ns, 0, -1)
+      local enc = ctx.client.offset_encoding or "utf-16"
+      local start_idx = vim.lsp.util._get_line_byte_from_position(ctx.bufnr, s, enc)
+      local end_idx = vim.lsp.util._get_line_byte_from_position(ctx.bufnr, e, enc)
+      vim.hl.range(ctx.bufnr, ns, "LspReferenceText", { s.line, start_idx }, { e.line, end_idx }, {
+        priority = vim.hl.priorities.user,
+      })
+    end)
+
+    vim.lsp.util.open_floating_preview(contents, format, { focus_id = "textDocument/hover" })
   end)
   return true
 end
